@@ -3,22 +3,54 @@
 //-- GRAPHQL request
 
 class Digitransit {
-  // 
-  private $apiUrl = "https://api.digitransit.fi/routing/v1/routers/hsl/index/graphql";
   
-  private function fetch($query){
+  private $apiUrl = "https://api.digitransit.fi/routing/v1/routers/hsl/index/graphql";
+  private $geocodingSearchUrl = "https://api.digitransit.fi/geocoding/v1/search";
+  private $geocodingReverseGeocodingUrl = "http://api.digitransit.fi/geocoding/v1/reverse";
+  private $cdn = "https://cdn.digitransit.fi/map/v1/hsl-map/";
+  
+  public setApiUrl($url){
+    $this->apiUrl = $url;
+  }
+  public setGeocodingUrl($url){
+    $this->geocodingUrl = $url;
+  }
+  
+  /**
+  * post fetch QL
+  */
+  private function fetchQL($query){
     $json = json_encode(['query' => $query]);
     $chObj = curl_init();
     curl_setopt($chObj, CURLOPT_URL, $this->apiUrl);
     curl_setopt($chObj, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($chObj, CURLOPT_CUSTOMREQUEST, 'POST');
-    curl_setopt($chObj, CURLOPT_HEADER, true);
+    // curl_setopt($chObj, CURLOPT_HEADER, true);
     curl_setopt($chObj, CURLOPT_POSTFIELDS, $json);
     curl_setopt($chObj, CURLOPT_HTTPHEADER,
        array(
               "Content-Type: application/json"
           )
       ); 
+    curl_setopt($chObj, CURLOPT_SSL_VERIFYHOST, 0);
+    curl_setopt($chObj, CURLOPT_SSL_VERIFYPEER, 0);
+    $response = curl_exec($chObj);
+    return $response;
+  }
+  
+  /**
+  *
+  */
+  private function fetchGeo($url, $params){
+    $url .= "?";
+    if(!empty($params)){
+      foreach($params AS $key => $value){
+        $url .= $key."=".$value."&";
+      }
+    }
+    $chObj = curl_init();
+    curl_setopt($chObj, CURLOPT_URL, $url);
+    curl_setopt($chObj, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($chObj, CURLOPT_SSL_VERIFYHOST, 0);
     curl_setopt($chObj, CURLOPT_SSL_VERIFYPEER, 0);
     $response = curl_exec($chObj);
@@ -34,7 +66,7 @@ class Digitransit {
         wheelchairBoarding
       }
     }';
-    return $this->fetch($query);
+    return $this->fetchQL($query);
   }
   
   public function getRoute($name, $mode){
@@ -49,7 +81,7 @@ class Digitransit {
         desc
       }
     }';
-    return $this->fetch($query);
+    return $this->fetchQL($query);
   }
   
   /**
@@ -64,36 +96,74 @@ class Digitransit {
         }
       }
     }';
-    return $this->fetch($query);
+    return $this->fetchQL($query);
   }
   
-  public function getPlan($from, $to, $itiniaries){
+  public function getPlan($from, $to, $itiniaries = 3){
     $query = '{
     plan(
       from: {lat: '.$from["lat"].', lon: '.$from["lon"].'}
       to: {lat: '.$to["lat"].', lon: '.$to["lon"].'}
       numItineraries: '.$itiniaries.'
     ) {
-    itineraries {
-      legs {
-        startTime
-        endTime
-        mode
-        duration
-        realTime
-        distance
-        transitLeg
+        itineraries {
+          legs {
+            startTime
+            endTime
+            mode
+            duration
+            realTime
+            distance
+            transitLeg
+          }
+        }
+      }
+    }';
+    return $this->fetchQL($query);
+  }
+  
+  /**
+  * address search
+  * https://www.digitransit.fi/en/developers/apis/2-geocoding-api/address-search/
+  */
+  public function addressSearch($params){
+    $allowed = array("text", "size", "boundary.rect.min_lon", "boundary.rect.max_lon", "boundary.rect.min_lat", "boundary.rect.max_lat", "boundary.circle.lat", "boundary.circle.lon", "boundary.circle.radius", "focus.point.lat", "focus.point.lon", "sources", "layers", "boundary.country", "lang");
+    if(!empty($params)){
+      forech($params AS $key => $value){
+        if(!in_array($key, $allowed)){
+          unset($params[$key]);
+        }
       }
     }
+    $this->fetchGeo($this->geocodingSearchUrl, $params);
   }
-}';
+  
+  /**
+  * reverce geocode
+  * https://www.digitransit.fi/en/developers/apis/2-geocoding-api/address-lookup/
+  */
+  public function addressGeoCode($params){
+    $allowed = array("point.lat", "point.lon", "lang", "boundary.circle.radius", "size", "layers", "sources", "boundary.country");
+    if(!empty($params)){
+      forech($params AS $key => $value){
+        if(!in_array($key, $allowed)){
+          unset($params[$key]);
+        }
+      }
+    }
+    $this->fetchGeo($this->geocodingSearchUrl, $params);
+  }
+  
+  /**
+  * z int Zoom level
+  * x int x-coordinate
+  * y int y-coordinate
+  * size string ‘@2x’ for retina tiles or empty value for normal
+  * https://www.digitransit.fi/en/developers/apis/3-map-api/background-map/
+  */
+  public function getMapUrl($z, $x, $y, $size = ""){
+    return $this->cdn.$z."/".$x."/".$y.$size.".png";
   }
   
 } // end Class
 
-
-$id = "HSL:1040129";
-$dt = new Digitransit();
-// $stop = $dt->getStop($id);
-$route = $dt->getRoute("58", "BUS");
-print_r($route);
