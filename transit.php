@@ -9,10 +9,10 @@ class Digitransit {
   private $geocodingReverseGeocodingUrl = "http://api.digitransit.fi/geocoding/v1/reverse";
   private $cdn = "https://cdn.digitransit.fi/map/v1/hsl-map/";
   
-  public setApiUrl($url){
+  public function setApiUrl($url){
     $this->apiUrl = $url;
   }
-  public setGeocodingUrl($url){
+  public function setGeocodingUrl($url){
     $this->geocodingUrl = $url;
   }
   
@@ -29,7 +29,8 @@ class Digitransit {
     curl_setopt($chObj, CURLOPT_POSTFIELDS, $json);
     curl_setopt($chObj, CURLOPT_HTTPHEADER,
        array(
-              "Content-Type: application/json"
+              "Content-Type: application/json",
+              "User-agent: https://github.com/duukkis/digitransit" 
           )
       ); 
     curl_setopt($chObj, CURLOPT_SSL_VERIFYHOST, 0);
@@ -129,13 +130,13 @@ class Digitransit {
   public function addressSearch($params){
     $allowed = array("text", "size", "boundary.rect.min_lon", "boundary.rect.max_lon", "boundary.rect.min_lat", "boundary.rect.max_lat", "boundary.circle.lat", "boundary.circle.lon", "boundary.circle.radius", "focus.point.lat", "focus.point.lon", "sources", "layers", "boundary.country", "lang");
     if(!empty($params)){
-      forech($params AS $key => $value){
+      foreach($params AS $key => $value){
         if(!in_array($key, $allowed)){
           unset($params[$key]);
         }
       }
     }
-    $this->fetchGeo($this->geocodingSearchUrl, $params);
+    return $this->fetchGeo($this->geocodingSearchUrl, $params);
   }
   
   /**
@@ -145,13 +146,13 @@ class Digitransit {
   public function addressGeoCode($params){
     $allowed = array("point.lat", "point.lon", "lang", "boundary.circle.radius", "size", "layers", "sources", "boundary.country");
     if(!empty($params)){
-      forech($params AS $key => $value){
+      foreach($params AS $key => $value){
         if(!in_array($key, $allowed)){
           unset($params[$key]);
         }
       }
     }
-    $this->fetchGeo($this->geocodingSearchUrl, $params);
+    return $this->fetchGeo($this->geocodingReverseGeocodingUrl, $params);
   }
   
   /**
