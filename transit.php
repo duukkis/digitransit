@@ -9,6 +9,8 @@ class Digitransit {
   private $geocodingReverseGeocodingUrl = "http://api.digitransit.fi/geocoding/v1/reverse";
   private $cdn = "https://cdn.digitransit.fi/map/v1/hsl-map/";
   
+  private $debug = false;
+  
   public function setApiUrl($url){
     $this->apiUrl = $url;
   }
@@ -20,12 +22,12 @@ class Digitransit {
   * post fetch QL
   */
   private function fetchQL($query){
+    if($this->debug){ print($query); print "\n"; }
     $json = json_encode(['query' => $query]);
     $chObj = curl_init();
     curl_setopt($chObj, CURLOPT_URL, $this->apiUrl);
     curl_setopt($chObj, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($chObj, CURLOPT_CUSTOMREQUEST, 'POST');
-    // curl_setopt($chObj, CURLOPT_HEADER, true);
     curl_setopt($chObj, CURLOPT_POSTFIELDS, $json);
     curl_setopt($chObj, CURLOPT_HTTPHEADER,
        array(
@@ -36,6 +38,11 @@ class Digitransit {
     curl_setopt($chObj, CURLOPT_SSL_VERIFYHOST, 0);
     curl_setopt($chObj, CURLOPT_SSL_VERIFYPEER, 0);
     $response = curl_exec($chObj);
+    $error = curl_error($chObj);
+    if(!empty($error)){
+      print_r($error);
+    }
+    if($this->debug){ print_r($response); print "\n"; }
     return $response;
   }
   
@@ -43,6 +50,7 @@ class Digitransit {
   *
   */
   private function fetchGeo($url, $params){
+    if($this->debug){ print_r($params); print "\n"; }
     $url .= "?";
     if(!empty($params)){
       foreach($params AS $key => $value){
@@ -55,6 +63,7 @@ class Digitransit {
     curl_setopt($chObj, CURLOPT_SSL_VERIFYHOST, 0);
     curl_setopt($chObj, CURLOPT_SSL_VERIFYPEER, 0);
     $response = curl_exec($chObj);
+    if($this->debug){ print_r($response); print "\n"; }
     return $response;
   }
   
@@ -100,14 +109,35 @@ class Digitransit {
     return $this->fetchQL($query);
   }
   
-  public function getPlan($from, $to, $itiniaries = 3){
+  public function getPlan($from, $to, $modes = array('BUS','TRAM','RAIL','SUBWAY','FERRY','WALK'), $itiniaries = 3){
+    $allowed_modes = array("BUS", "TRAM", "RAIL", "SUBWAY", "FERRY", "WALK");
+    if(!empty($modes)){
+      foreach($modes AS $key => $value){
+        if(!in_array($value, $allowed_modes)){
+          unset($modes[$key]);
+        }
+      }
+    }
+    /*
+    walkReluctance: 2.1,
+    walkBoardCost: 600,
+    minTransferTime: 180,
+    walkSpeed: 1.2,
+    
+    legGeometry {
+      length
+      points
+    }
+
+    */
     $query = '{
     plan(
       from: {lat: '.$from["lat"].', lon: '.$from["lon"].'}
       to: {lat: '.$to["lat"].', lon: '.$to["lon"].'}
+      modes: "'.implode(",", $modes).'"
       numItineraries: '.$itiniaries.'
     ) {
-        itineraries {
+      itineraries {
           legs {
             startTime
             endTime
@@ -116,6 +146,20 @@ class Digitransit {
             realTime
             distance
             transitLeg
+            from {
+              lat
+              lon
+              name
+              stop {
+                code
+                name
+              }
+            }
+            to {
+              lat
+              lon
+              name
+            }
           }
         }
       }
