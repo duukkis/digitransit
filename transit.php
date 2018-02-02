@@ -109,7 +109,10 @@ class Digitransit {
     return $this->fetchQL($query);
   }
   
-  public function getPlan($from, $to, $modes = array('BUS','TRAM','RAIL','SUBWAY','FERRY','WALK'), $itiniaries = 3){
+  public function getPlan($from, $to, $starttime = null, $itiniaries = 3, $modes = array('BUS','TRAM','RAIL','SUBWAY','FERRY','WALK')){
+    if(empty($starttime)){
+      $starttime = time();
+    }
     $allowed_modes = array("BUS", "TRAM", "RAIL", "SUBWAY", "FERRY", "WALK");
     if(!empty($modes)){
       foreach($modes AS $key => $value){
@@ -136,34 +139,40 @@ class Digitransit {
       to: {lat: '.$to["lat"].', lon: '.$to["lon"].'}
       modes: "'.implode(",", $modes).'"
       numItineraries: '.$itiniaries.'
+      date: "'.date("Y-m-d", $starttime).'"
+      time: "'.date("H:i:s", $starttime).'"
     ) {
       itineraries {
-          legs {
-            startTime
-            endTime
-            mode
-            duration
-            realTime
-            distance
-            transitLeg
-            from {
-              lat
-              lon
-              name
-              stop {
-                code
-                name
-              }
-            }
-            to {
-              lat
-              lon
+        startTime
+        endTime
+        walkDistance
+        duration
+        legs {
+          startTime
+          endTime
+          mode
+          duration
+          realTime
+          distance
+          transitLeg
+          from {
+            lat
+            lon
+            name
+            stop {
+              code
               name
             }
           }
+          to {
+            lat
+            lon
+            name
+          }
         }
       }
-    }';
+    }
+  }';
     return $this->fetchQL($query);
   }
   
